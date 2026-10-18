@@ -1,5 +1,12 @@
 """Доменные ошибки приёма сдач"""
 
+from typing import Final
+
+INVALID_JSON: Final = "invalid_json"
+SCHEMA_ERROR: Final = "schema_error"
+UNSUPPORTED_VERSION: Final = "unsupported_version"
+CONFLICT: Final = "conflict"
+
 class SubmissionError(Exception):
     """Ожидаемая ошибка обработки одной сдачи"""
     

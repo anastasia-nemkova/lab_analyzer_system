@@ -49,14 +49,18 @@ def decode_json(line: str) -> dict[str, Any]:
 def _convert_validations_error(exc: ValidationError) -> SubmissionError:
     """Преобразует Pydantic ValidationError в структурированный SubmissionError"""
     err = exc.errors()[0]
+    location = err["loc"]
 
-    field_name = ".".join(str(loc) for loc in err["loc"]) if err["loc"] else "json"
-    msg = err["msg"]
+    is_value_error = err["type"] == "value_error"
+    
+    field_name = ".".join(str(loc) for loc in location) if location else "json"
+    
+    msg = err["msg"].removeprefix("Value error, ")
 
-    if not err["loc"] and "text" in msg and "code" in msg:
+    if not location and is_value_error:
         field_name = "text/code"
 
-    if "версия схемы" in msg.lower() or "version" in msg.lower():
+    if location == ("schema_version",) and is_value_error:
         code = UNSUPPORTED_VERSION
     else:
         code = SCHEMA_ERROR
@@ -69,5 +73,5 @@ def parse_submission(raw: dict[str, Any]) -> Submission:
         dto = SubmissionInput.model_validate(raw)
     except ValidationError as exc:
         raise _convert_validations_error(exc) from exc
-    return dto.to_domian()
+    return dto.to_domain()
 

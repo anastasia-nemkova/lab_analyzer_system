@@ -61,7 +61,7 @@ class SubmissionInput(BaseModel):
 
     @field_validator("schema_version")
     @classmethod
-    def _check_schema_versiond(cls, value: int) -> int:
+    def _check_schema_version(cls, value: int) -> int:
         if value != SUPPORTED_SCHEMA_VERSION:
             raise ValueError(f"Поддерживается версия схемы {SUPPORTED_SCHEMA_VERSION}")
         return value
@@ -92,7 +92,7 @@ class SubmissionInput(BaseModel):
             raise ValueError("Поле text или code должно быть непустым")
         return self
 
-    def to_domian(self) -> Submission:
+    def to_domain(self) -> Submission:
         return Submission(
             schema_version=self.schema_version,
             submission_id=self.submission_id,

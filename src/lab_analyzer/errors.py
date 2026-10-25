@@ -24,7 +24,7 @@ class SubmissionError(Exception):
             "message": self.message
         }
 
-    def __rerp__(self) -> str:
+    def __repr__(self) -> str:
         """Подробное представление ошибки (traceback, логи, REPL)"""
         return (
             f"SubmissionError (code = {self.code!r}, field = {self.field!r}, "

@@ -55,3 +55,5 @@ def test_input_not_mutated_on_error(raw_submission: dict[str,Any]) -> None:
         parse_submission(raw_submission)
     after = json.dumps(raw_submission, sort_keys=True)
     assert before == after
+
+    

@@ -1,6 +1,4 @@
-"""
-Тесты хеширования: устойчивость, независимость от порядка ключей, чувствительность к данным
-"""
+"""Тесты хеширования: устойчивость, независимость от порядка ключей, чувствительность к данным"""
 
 import copy
 import json
@@ -100,3 +98,24 @@ def test_hash_is_stable_across_processes(submission: Submission) -> None:
         for seed in ("1", "2", "3")
     }
     assert outputs == {stable_hash({"text": "дом", "n": 1})}
+
+
+def test_canonical_json_handles_tuples_and_nested() -> None:
+    assert canonical_json({"t": (1, 2), "n": None}) == '{"n":null,"t":[1,2]}'
+
+
+def test_canonical_json_rejects_infinity() -> None:
+    with pytest.raises(ValueError):
+        canonical_json([float("inf")])
+
+
+def test_equal_submissions_have_equal_hash_and_distinct_ids_differ() -> None:
+    a, b = parse_submission(changed()), parse_submission(changed())
+    assert submission_hash(a) == submission_hash(b)
+    assert submission_hash(parse_submission(changed(submission_id="other"))) != submission_hash(a)
+
+
+def test_hash_of_known_value_is_fixed() -> None:
+    assert stable_hash({"a": 1}) == (
+        "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862"
+    )

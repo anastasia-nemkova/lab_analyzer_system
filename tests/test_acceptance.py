@@ -1,11 +1,15 @@
+"""Сервис приёма, репозиторий и неизменяемость модели: приём, дубликат, конфликт, ошибки"""
+
 import copy
+import dataclasses
 
 import pytest
 
-from lab_analyzer.errors import SubmissionError
+from lab_analyzer.errors import CONFLICT, SubmissionError
+from lab_analyzer.models import AIDeclaration, Assignment, Evidence, Finding, Submission
 from lab_analyzer.repositories import InMemorySubmissionRepository
 from lab_analyzer.services import SubmissionService
-from tests.cases import changed
+from tests.cases import RAW_EXAMPLE, changed
 
 
 def test_accept_then_duplicate_then_conflict(
@@ -69,6 +73,7 @@ def test_accept_does_not_mutate_input(service: SubmissionService, raw_submission
     service.accept(raw_submission)
     assert raw_submission == before
 
+
 def test_batch_processing_continues_on_error(
     service: SubmissionService, repository: InMemorySubmissionRepository, raw_submission
 ) -> None:
@@ -95,3 +100,91 @@ def test_batch_processing_continues_on_error(
     assert errors_count == 1
     assert set(accepted_ids) == {"sub-002", "sub-004"}
     assert len(repository) == 3
+
+
+def test_models_are_frozen(submission: Submission) -> None:
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        submission.code = "x"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        submission.ai_declaration.used = True 
+
+
+@pytest.mark.parametrize(
+    "instance",
+    [
+        AIDeclaration(False, None, None, True),
+        Assignment("a", "", ()),
+        Evidence("s", "code", 1, 1),
+        Finding("rubric_feedback", None, (), "x"),
+    ],
+)
+def test_models_use_slots_and_have_no_dict(instance: object) -> None:
+    assert not hasattr(instance, "__dict__")
+    with pytest.raises((AttributeError, TypeError)):
+        instance.unexpected = 1
+
+
+def test_domain_model_has_no_mutable_containers(submission: Submission) -> None:
+    for field in dataclasses.fields(submission):
+        assert not isinstance(getattr(submission, field.name), (list, dict, set))
+
+
+def test_repository_get_missing_and_len(submission: Submission) -> None:
+    repo = InMemorySubmissionRepository()
+    assert repo.get("nope") is None and len(repo) == 0
+    repo.add(submission)
+    assert repo.get("sub-001") is submission and len(repo) == 1
+
+
+def test_failed_add_keeps_original_object(submission: Submission) -> None:
+    repo = InMemorySubmissionRepository()
+    repo.add(submission)
+    other = dataclasses.replace(submission, code="changed")
+    with pytest.raises(SubmissionError) as caught:
+        repo.add(other)
+    assert caught.value.code == CONFLICT
+    assert repo.get("sub-001") is submission
+
+
+def test_accept_submission_conflict(submission: Submission) -> None:
+    service = SubmissionService(InMemorySubmissionRepository())
+    service.accept_submission(submission)
+    with pytest.raises(SubmissionError) as caught:
+        service.accept_submission(dataclasses.replace(submission, text="другая версия"))
+    assert caught.value.code == CONFLICT
+
+
+def test_service_works_with_any_repository_implementing_protocol(submission: Submission) -> None:
+    class DictRepo:
+        def __init__(self) -> None:
+            self.data: dict[str, Submission] = {}
+
+        def get(self, submission_id: str) -> Submission | None:
+            return self.data.get(submission_id)
+
+        def add(self, s: Submission) -> None:
+            self.data[s.submission_id] = s
+
+    repo = DictRepo()
+    result = SubmissionService(repo).accept_submission(submission)
+    assert result.status == "accepted" and "sub-001" in repo.data
+
+
+def test_duplicate_does_not_touch_repository(submission: Submission) -> None:
+    class CountingRepo(InMemorySubmissionRepository):
+        adds = 0
+
+        def add(self, s: Submission) -> None:
+            type(self).adds += 1
+            super().add(s)
+
+    service = SubmissionService(CountingRepo())
+    service.accept_submission(submission)
+    service.accept_submission(submission)
+    assert CountingRepo.adds == 1
+
+
+def test_accept_submission_matches_accept(submission: Submission) -> None:
+    left = SubmissionService(InMemorySubmissionRepository())
+    right = SubmissionService(InMemorySubmissionRepository())
+    assert left.accept(RAW_EXAMPLE) == right.accept_submission(submission)

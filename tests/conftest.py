@@ -1,15 +1,18 @@
-"""
-Фикстуры pytest
-"""
+"""Фикстуры pytest"""
+
 import copy
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from lab_analyzer.app import Application, build_application
+from lab_analyzer.importer import import_source
 from lab_analyzer.models import Submission
 from lab_analyzer.parsing import parse_submission
 from lab_analyzer.repositories import InMemorySubmissionRepository
 from lab_analyzer.services import SubmissionService
+from lab_analyzer.sources import JSONLSource
 from tests.cases import RAW_EXAMPLE
 
 
@@ -28,3 +31,10 @@ def repository() -> InMemorySubmissionRepository:
 @pytest.fixture
 def service(repository: InMemorySubmissionRepository) -> SubmissionService:
     return SubmissionService(repository)
+
+@pytest.fixture
+def loaded_app() -> Application:
+    corpus = Path(__file__).resolve().parent.parent / "data" / "submissions.jsonl"
+    app = build_application()
+    import_source(JSONLSource(corpus), app.submission_service)
+    return app

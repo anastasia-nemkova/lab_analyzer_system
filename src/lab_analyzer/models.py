@@ -1,6 +1,7 @@
 """Доменные модели системы"""
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,3 +24,53 @@ class Submission:
     code: str
     template_id: str | None
     ai_declaration: AIDeclaration
+
+@dataclass(frozen=True, slots=True)
+class Assignment:
+    """Требования к лабораторной работе"""
+    assignment_id: str
+    allowed_template: str
+    requirements: tuple[str, ...]
+
+@dataclass(frozen=True, slots=True)
+class Evidence:
+    """Ссылка на строки исходного содержимого"""
+    submission_id: str
+    field: Literal["text", "code"]
+    start_line: int
+    end_line: int
+
+@dataclass(frozen=True, slots=True)
+class Finding:
+    """Наблюдение анализатора о сдаче"""
+    kind: Literal["similarity", "rubric_feedback", "processing_error"]
+    score: float | None
+    evidence: tuple[Evidence, ...]
+    explanation: str
+
+@dataclass(frozen=True, slots=True)
+class AnalysisReport:
+    """Отчёт анализатора о результатах проверки сдачи"""
+    report_id: str
+    submission_id: str
+    submission_hash: str
+    analyzer_id: str
+    analyzer_version: str
+    config_hash: str
+    findings: tuple[Finding, ...]
+    created_at: str
+    review_required: bool
+
+@dataclass(frozen=True, slots=True)
+class AnalysisContext:
+    """Контекст выполнения анализа"""
+    assignment: Assignment
+    mode: Literal["baseline", "stub"] = "baseline"
+    config_version: str = "1"
+
+    def config_payload(self) -> dict[str, object]:
+        return {
+            "assignment": asdict(self.assignment),
+            "mode": self.mode,
+            "config_version": self.config_version,
+        }

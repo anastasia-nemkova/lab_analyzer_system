@@ -1,0 +1,10 @@
+{
+  "assignment": {
+    "assignment_id": "assignment-01",
+    "allowed_template": "from typing import Iterable\n",
+    "requirements": ["Наличие функции solve"]
+  },
+  "analyzers": ["length", "template", "declaration", "missing-explanation"],
+  "mode": "baseline",
+  "config_version": "1"
+}
